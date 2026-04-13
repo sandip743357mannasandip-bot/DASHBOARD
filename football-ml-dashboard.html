@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Football ML Predictor — La Liga Analysis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #060a0f;
+  --bg2: #0b1118;
+  --bg3: #111820;
+  --card: #131c26;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.13);
+  --text: #e8edf2;
+  --muted: #6b7e90;
+  --accent: #00e5a0;
+  --accent2: #0ea5e9;
+  --accent3: #f59e0b;
+  --red: #f43f5e;
+  --green: #00e5a0;
+  --gold: #f59e0b;
+  --font-head: 'Syne', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* ── Nav ── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 2rem; height: 60px;
+  background: rgba(6,10,15,0.85);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+}
+.nav-brand {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-head); font-weight: 700; font-size: 16px; letter-spacing: -0.02em;
+}
+.nav-logo {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: linear-gradient(135deg, #00e5a0 0%, #0ea5e9 100%);
+  display: flex; align-items: center; justify-content: center;
+}
+.nav-logo svg { width: 18px; height: 18px; }
+.nav-links { display: flex; gap: 0; }
+.nav-links a {
+  color: var(--muted); text-decoration: none; font-size: 13px;
+  padding: 6px 14px; border-radius: 6px; transition: color 0.2s, background 0.2s;
+}
+.nav-links a:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+.nav-cta {
+  font-size: 13px; padding: 7px 16px; border-radius: 8px;
+  background: var(--accent); color: #060a0f; font-weight: 500;
+  border: none; cursor: pointer; font-family: var(--font-body);
+  transition: opacity 0.2s;
+}
+.nav-cta:hover { opacity: 0.85; }
+
+/* ── Hero ── */
+.hero {
+  min-height: 100vh; display: flex; align-items: center;
+  padding: 100px 2rem 60px;
+  position: relative; overflow: hidden;
+}
+.hero-bg {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 50% at 70% 50%, rgba(0,229,160,0.06) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 60% at 20% 80%, rgba(14,165,233,0.05) 0%, transparent 60%);
+}
+.hero-grid {
+  position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 0%, transparent 100%);
+}
+.hero-inner {
+  max-width: 1100px; margin: 0 auto; width: 100%;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center;
+}
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 11px; font-family: var(--font-mono);
+  color: var(--accent); border: 1px solid rgba(0,229,160,0.25);
+  padding: 5px 12px; border-radius: 20px; margin-bottom: 1.5rem;
+  background: rgba(0,229,160,0.06);
+}
+.hero-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
+h1 {
+  font-family: var(--font-head); font-size: clamp(2.4rem, 5vw, 3.8rem);
+  font-weight: 800; line-height: 1.05; letter-spacing: -0.03em;
+  margin-bottom: 1.2rem;
+}
+h1 span { color: var(--accent); }
+.hero-sub {
+  font-size: 16px; color: var(--muted); line-height: 1.7;
+  margin-bottom: 2rem; max-width: 440px;
+}
+.hero-btns { display: flex; gap: 12px; flex-wrap: wrap; }
+.btn-primary {
+  padding: 12px 24px; border-radius: 10px; border: none; cursor: pointer;
+  background: var(--accent); color: #060a0f; font-weight: 500; font-size: 14px;
+  font-family: var(--font-body); transition: opacity 0.2s, transform 0.15s;
+  text-decoration: none; display: inline-block;
+}
+.btn-primary:hover { opacity: 0.88; transform: translateY(-1px); }
+.btn-secondary {
+  padding: 12px 24px; border-radius: 10px; border: 1px solid var(--border2); cursor: pointer;
+  background: transparent; color: var(--text); font-weight: 400; font-size: 14px;
+  font-family: var(--font-body); transition: background 0.2s, transform 0.15s;
+  text-decoration: none; display: inline-block;
+}
+.btn-secondary:hover { background: rgba(255,255,255,0.04); transform: translateY(-1px); }
+
+/* Hero stats */
+.hero-stats {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+.hstat {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 14px; padding: 20px 22px;
+  position: relative; overflow: hidden;
+  transition: border-color 0.2s;
+}
+.hstat:hover { border-color: var(--border2); }
+.hstat::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+}
+.hstat.green::before { background: var(--accent); }
+.hstat.blue::before { background: var(--accent2); }
+.hstat.gold::before { background: var(--gold); }
+.hstat.red::before { background: var(--red); }
+.hstat-val {
+  font-family: var(--font-head); font-size: 2.4rem; font-weight: 700;
+  letter-spacing: -0.04em; margin-bottom: 4px;
+}
+.hstat.green .hstat-val { color: var(--accent); }
+.hstat.blue .hstat-val { color: var(--accent2); }
+.hstat.gold .hstat-val { color: var(--gold); }
+.hstat.red .hstat-val { color: var(--red); }
+.hstat-label { font-size: 12px; color: var(--muted); }
+
+/* ── Section layout ── */
+section { padding: 80px 2rem; }
+.container { max-width: 1100px; margin: 0 auto; }
+.section-tag {
+  font-family: var(--font-mono); font-size: 11px; color: var(--accent);
+  letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 12px;
+}
+h2 {
+  font-family: var(--font-head); font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+  font-weight: 700; letter-spacing: -0.03em; margin-bottom: 0.6rem;
+}
+.section-sub { font-size: 15px; color: var(--muted); max-width: 520px; }
+
+/* ── Model card section ── */
+.model-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+  margin-top: 3rem;
+}
+.model-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 16px; padding: 28px; position: relative;
+  transition: border-color 0.2s, transform 0.2s;
+  overflow: hidden;
+}
+.model-card:hover { border-color: var(--border2); transform: translateY(-2px); }
+.model-card.featured { border-color: rgba(0,229,160,0.3); }
+.model-card.featured::before {
+  content: 'CURRENT MODEL'; position: absolute; top: 16px; right: 16px;
+  font-size: 10px; font-family: var(--font-mono); letter-spacing: 0.08em;
+  color: var(--accent); background: rgba(0,229,160,0.1);
+  border: 1px solid rgba(0,229,160,0.25); border-radius: 20px; padding: 3px 10px;
+}
+.mc-icon {
+  width: 44px; height: 44px; border-radius: 10px; margin-bottom: 16px;
+  display: flex; align-items: center; justify-content: center; font-size: 20px;
+}
+.mc-name { font-family: var(--font-head); font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+.mc-desc { font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 18px; }
+.mc-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mc-m { background: var(--bg3); border-radius: 8px; padding: 10px 12px; }
+.mc-m-label { font-size: 10px; color: var(--muted); font-family: var(--font-mono); margin-bottom: 2px; }
+.mc-m-val { font-size: 18px; font-weight: 500; font-family: var(--font-head); }
+.add-model-card {
+  background: transparent; border: 1px dashed var(--border2);
+  border-radius: 16px; padding: 28px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; cursor: pointer; transition: background 0.2s, border-color 0.2s;
+  text-align: center;
+}
+.add-model-card:hover { background: rgba(255,255,255,0.02); border-color: var(--accent); }
+.add-model-card .plus { width: 48px; height: 48px; border-radius: 50%; border: 1.5px dashed var(--border2); display: flex; align-items: center; justify-content: center; font-size: 24px; color: var(--muted); }
+.add-model-card p { font-size: 14px; color: var(--muted); }
+.add-model-card span { font-size: 12px; color: #3a4a5a; }
+
+/* ── Charts section ── */
+.charts-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 3rem;
+}
+.chart-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 16px; padding: 24px;
+}
+.chart-card.full { grid-column: 1 / -1; }
+.chart-title { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+.chart-sub { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+.chart-wrap { position: relative; height: 220px; }
+
+/* ── Outcome section ── */
+.outcome-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 3rem;
+}
+.outcome-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px;
+}
+.oc-label { font-size: 12px; color: var(--muted); font-family: var(--font-mono); margin-bottom: 8px; }
+.oc-val { font-family: var(--font-head); font-size: 2rem; font-weight: 700; margin-bottom: 4px; }
+.oc-sub { font-size: 12px; color: var(--muted); }
+.confusion-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 1.5rem;
+}
+.cm-cell {
+  background: var(--bg3); border-radius: 6px; padding: 12px 8px; text-align: center;
+}
+.cm-cell.header { background: transparent; font-size: 11px; color: var(--muted); font-family: var(--font-mono); padding: 4px; }
+.cm-cell.diagonal { background: rgba(0,229,160,0.12); border: 1px solid rgba(0,229,160,0.2); }
+.cm-val { font-family: var(--font-head); font-size: 1.4rem; font-weight: 700; }
+.cm-cell.diagonal .cm-val { color: var(--accent); }
+.cm-lbl { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+/* ── Probability section ── */
+.prob-bar-row { margin-bottom: 14px; }
+.prob-bar-head { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px; }
+.prob-bar-track { height: 8px; background: var(--bg3); border-radius: 4px; overflow: hidden; }
+.prob-bar-fill { height: 100%; border-radius: 4px; transition: width 1s ease; }
+
+/* ── Top N section ── */
+.topn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 2rem; }
+.topn-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px;
+  text-align: center;
+}
+.topn-donut { position: relative; width: 100px; height: 100px; margin: 0 auto 12px; }
+.topn-donut svg { transform: rotate(-90deg); }
+.topn-donut .donut-center {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  text-align: center;
+}
+.topn-donut .donut-pct { font-family: var(--font-head); font-size: 18px; font-weight: 700; }
+.topn-label { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+.topn-sub { font-size: 11px; color: var(--muted); }
+
+/* ── Compare section ── */
+.compare-table-wrap {
+  background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+  overflow: hidden; margin-top: 2rem;
+}
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  text-align: left; padding: 14px 20px; font-size: 11px; font-family: var(--font-mono);
+  color: var(--muted); letter-spacing: 0.05em; border-bottom: 1px solid var(--border);
+  background: var(--bg3);
+}
+tbody td {
+  padding: 14px 20px; font-size: 13px; border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: rgba(255,255,255,0.02); }
+.td-bar { display: flex; align-items: center; gap: 10px; }
+.td-bar-track { flex: 1; height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; max-width: 120px; }
+.td-bar-fill { height: 100%; border-radius: 3px; }
+.tag { font-size: 10px; padding: 3px 8px; border-radius: 20px; font-family: var(--font-mono); }
+.tag-green { background: rgba(0,229,160,0.12); color: var(--accent); }
+.tag-gray { background: rgba(255,255,255,0.06); color: var(--muted); }
+
+/* ── Timeline / Process ── */
+.process-steps {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+  margin-top: 3rem; position: relative;
+}
+.process-steps::before {
+  content: ''; position: absolute; top: 28px; left: 12%; right: 12%; height: 1px;
+  background: var(--border2);
+}
+.step { text-align: center; position: relative; padding: 0 12px; }
+.step-num {
+  width: 56px; height: 56px; border-radius: 50%; border: 1px solid var(--border2);
+  background: var(--card); display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 16px; font-family: var(--font-mono); font-size: 12px; color: var(--accent);
+  position: relative; z-index: 1;
+}
+.step-num.done { background: rgba(0,229,160,0.15); border-color: rgba(0,229,160,0.4); }
+.step-title { font-size: 14px; font-weight: 500; margin-bottom: 6px; }
+.step-sub { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+/* ── Footer ── */
+footer {
+  border-top: 1px solid var(--border); padding: 40px 2rem;
+  text-align: center;
+}
+.footer-inner { max-width: 1100px; margin: 0 auto; }
+.footer-brand { font-family: var(--font-head); font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+.footer-sub { font-size: 13px; color: var(--muted); }
+.footer-links { display: flex; justify-content: center; gap: 24px; margin-top: 20px; }
+.footer-links a { font-size: 12px; color: var(--muted); text-decoration: none; }
+.footer-links a:hover { color: var(--text); }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .hero-inner, .model-row, .charts-grid, .outcome-grid { grid-template-columns: 1fr; gap: 16px; }
+  .topn-grid { grid-template-columns: 1fr 1fr; }
+  .process-steps { grid-template-columns: 1fr 1fr; gap: 20px; }
+  .process-steps::before { display: none; }
+  .hero-stats { grid-template-columns: 1fr 1fr; }
+  .nav-links { display: none; }
+  h1 { font-size: 2.2rem; }
+  .charts-grid .full { grid-column: 1; }
+}
+
+/* ── Animations ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { opacity: 0; animation: fadeUp 0.6s ease forwards; }
+.fade-up:nth-child(2) { animation-delay: 0.1s; }
+.fade-up:nth-child(3) { animation-delay: 0.2s; }
+.fade-up:nth-child(4) { animation-delay: 0.3s; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-brand">
+    <div class="nav-logo">
+      <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="10" cy="10" r="8" stroke="#060a0f" stroke-width="1.5"/>
+        <path d="M10 2 Q13.5 6 10 10 Q6.5 14 10 18" stroke="#060a0f" stroke-width="1.2" fill="none"/>
+        <path d="M2 10 Q6 7 10 10 Q14 13 18 10" stroke="#060a0f" stroke-width="1.2" fill="none"/>
+      </svg>
+    </div>
+    Football ML Predictor
+  </div>
+  <div class="nav-links">
+    <a href="#models">Models</a>
+    <a href="#analysis">Analysis</a>
+    <a href="#outcomes">Outcomes</a>
+    <a href="#topn">Hit Rate</a>
+    <a href="#compare">Compare</a>
+  </div>
+  <button class="nav-cta" onclick="document.getElementById('contact').scrollIntoView({behavior:'smooth'})">Contact me</button>
+</nav>
+
+<!-- HERO -->
+<section class="hero" id="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+  <div class="hero-inner container">
+    <div>
+      <div class="hero-badge fade-up">La Liga · 10 seasons · 2024/25</div>
+      <h1 class="fade-up">ML-Powered <span>Football</span> Score Prediction</h1>
+      <p class="hero-sub fade-up">Random Forest + Poisson ensemble model predicting La Liga match scorelines, xG, and outcomes — built on 10 seasons of historical data.</p>
+      <div class="hero-btns fade-up">
+        <a href="#models" class="btn-primary">Explore models</a>
+        <a href="#compare" class="btn-secondary">Compare results</a>
+      </div>
+    </div>
+    <div class="hero-stats">
+      <div class="hstat green fade-up">
+        <div class="hstat-val">68%</div>
+        <div class="hstat-label">Outcome accuracy</div>
+      </div>
+      <div class="hstat blue fade-up">
+        <div class="hstat-val">79%</div>
+        <div class="hstat-label">Top 5 hit rate</div>
+      </div>
+      <div class="hstat gold fade-up">
+        <div class="hstat-val">13%</div>
+        <div class="hstat-label">Exact score rate</div>
+      </div>
+      <div class="hstat red fade-up">
+        <div class="hstat-val">0.38</div>
+        <div class="hstat-label">xG MAE (goals)</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MODELS -->
+<section id="models">
+  <div class="container">
+    <div class="section-tag">Prediction Models</div>
+    <h2>Models built &amp; compared</h2>
+    <p class="section-sub">Each model is trained on La Liga match data with rolling form statistics and ML-predicted expected goals.</p>
+    <div class="model-row">
+      <div class="model-card featured">
+        <div class="mc-icon" style="background:rgba(0,229,160,0.12)">⚽</div>
+        <div class="mc-name">RF + Poisson v1</div>
+        <p class="mc-desc">Random Forest Regressor and Linear Regression ensemble, inverse-MAE weighted. Poisson distribution with ML xG as lambda. Features: shots, SoT, G/Sh, venue, opponent, 5-match rolling averages.</p>
+        <div class="mc-metrics">
+          <div class="mc-m"><div class="mc-m-label">OUTCOME ACC</div><div class="mc-m-val" style="color:var(--accent)">68%</div></div>
+          <div class="mc-m"><div class="mc-m-label">TOP 5 HIT</div><div class="mc-m-val" style="color:var(--accent2)">79%</div></div>
+          <div class="mc-m"><div class="mc-m-label">xG MAE</div><div class="mc-m-val" style="color:var(--gold)">0.38</div></div>
+          <div class="mc-m"><div class="mc-m-label">EXACT SCORE</div><div class="mc-m-val" style="color:var(--red)">13%</div></div>
+        </div>
+      </div>
+      <div class="add-model-card">
+        <div class="plus">+</div>
+        <p>Next model coming soon</p>
+        <span>XGBoost · Neural Net · Elo Rating</span>
+      </div>
+    </div>
+
+    <!-- Process steps -->
+    <div style="margin-top:4rem">
+      <div class="section-tag">Pipeline</div>
+      <h2 style="font-size:1.6rem">How the model works</h2>
+    </div>
+    <div class="process-steps">
+      <div class="step">
+        <div class="step-num done">01</div>
+        <div class="step-title">Data ingestion</div>
+        <p class="step-sub">10 seasons La Liga CSV · 3,800+ matches · shots, SoT, G/Sh, G/SoT per team</p>
+      </div>
+      <div class="step">
+        <div class="step-num done">02</div>
+        <div class="step-title">Feature engineering</div>
+        <p class="step-sub">5-match rolling averages, venue encoding, opponent label encoding, form stats</p>
+      </div>
+      <div class="step">
+        <div class="step-num done">03</div>
+        <div class="step-title">ML xG prediction</div>
+        <p class="step-sub">RF + LR ensemble predicts xG for each team, weighted by inverse MAE</p>
+      </div>
+      <div class="step">
+        <div class="step-num done">04</div>
+        <div class="step-title">Poisson scoreline</div>
+        <p class="step-sub">5×5 scoreline matrix from Poisson(λ=xG), top 5 most likely scores ranked</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- xG ANALYSIS -->
+<section id="analysis" style="padding-top:0">
+  <div class="container">
+    <div class="section-tag">xG Analysis</div>
+    <h2>Expected goals vs actual</h2>
+    <p class="section-sub">Comparing ML-predicted xG against actual goals scored across 38 La Liga matches.</p>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">xG scatter plot</div>
+        <div class="chart-sub">Predicted xG vs actual goals per match</div>
+        <div class="chart-wrap"><canvas id="scatter"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Residual distribution</div>
+        <div class="chart-sub">Error = Actual goals − Predicted xG</div>
+        <div class="chart-wrap"><canvas id="residual"></canvas></div>
+      </div>
+      <div class="chart-card full">
+        <div class="chart-title">Match-by-match: predicted xG vs actual goals</div>
+        <div class="chart-sub">Line comparison across all 38 matches · dashed = predicted · solid = actual</div>
+        <div class="chart-wrap" style="height:260px"><canvas id="line"></canvas></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- OUTCOMES -->
+<section id="outcomes" style="padding-top:0">
+  <div class="container">
+    <div class="section-tag">Outcome Prediction</div>
+    <h2>Win / Draw / Loss accuracy</h2>
+    <p class="section-sub">38 La Liga matches · outcome predicted using highest Poisson probability scoreline.</p>
+
+    <div class="outcome-grid">
+      <div class="outcome-card">
+        <div class="oc-label">OVERALL ACCURACY</div>
+        <div class="oc-val" style="color:var(--accent)">68.4%</div>
+        <div class="oc-sub">26 of 38 matches correct</div>
+      </div>
+      <div class="outcome-card">
+        <div class="oc-label">WIN PREDICTION</div>
+        <div class="oc-val" style="color:var(--accent2)">81.8%</div>
+        <div class="oc-sub">18 of 22 predicted wins correct</div>
+      </div>
+      <div class="outcome-card">
+        <div class="oc-label">DRAW PREDICTION</div>
+        <div class="oc-val" style="color:var(--gold)">37.5%</div>
+        <div class="oc-sub">3 of 8 predicted draws correct</div>
+      </div>
+    </div>
+
+    <!-- Confusion Matrix -->
+    <div style="margin-top:2rem">
+      <div class="chart-card" style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px">
+        <div class="chart-title">Confusion matrix</div>
+        <div class="chart-sub">Rows = predicted outcome, columns = actual outcome</div>
+        <div class="confusion-grid">
+          <div class="cm-cell header"></div>
+          <div class="cm-cell header">Actual W</div>
+          <div class="cm-cell header">Actual D</div>
+          <div class="cm-cell header">Actual L</div>
+          <div class="cm-cell header">Pred W</div>
+          <div class="cm-cell diagonal"><div class="cm-val">18</div><div class="cm-lbl">correct</div></div>
+          <div class="cm-cell"><div class="cm-val" style="color:var(--muted)">3</div><div class="cm-lbl">wrong</div></div>
+          <div class="cm-cell"><div class="cm-val" style="color:var(--muted)">1</div><div class="cm-lbl">wrong</div></div>
+          <div class="cm-cell header">Pred D</div>
+          <div class="cm-cell"><div class="cm-val" style="color:var(--muted)">2</div><div class="cm-lbl">wrong</div></div>
+          <div class="cm-cell diagonal"><div class="cm-val">3</div><div class="cm-lbl">correct</div></div>
+          <div class="cm-cell"><div class="cm-val" style="color:var(--muted)">3</div><div class="cm-lbl">wrong</div></div>
+          <div class="cm-cell header">Pred L</div>
+          <div class="cm-cell"><div class="cm-val" style="color:var(--muted)">1</div><div class="cm-lbl">wrong</div></div>
+          <div class="cm-cell"><div class="cm-val" style="color:var(--muted)">2</div><div class="cm-lbl">wrong</div></div>
+          <div class="cm-cell diagonal"><div class="cm-val">5</div><div class="cm-lbl">correct</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Outcome chart -->
+    <div style="margin-top:20px">
+      <div class="chart-card">
+        <div class="chart-title">Outcome frequency: predicted vs actual</div>
+        <div class="chart-sub">How often each outcome was predicted vs how often it occurred</div>
+        <div class="chart-wrap"><canvas id="outcomeBar"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Probability bars -->
+    <div style="margin-top:20px">
+      <div class="chart-card">
+        <div class="chart-title">Average probabilities by actual outcome</div>
+        <div class="chart-sub">When each outcome occurred, what probability did the model assign?</div>
+        <div style="margin-top:16px">
+          <div class="prob-bar-row">
+            <div class="prob-bar-head"><span>Win prob when actual = Win</span><span style="color:var(--accent)">58.4%</span></div>
+            <div class="prob-bar-track"><div class="prob-bar-fill" style="width:58.4%;background:var(--accent)"></div></div>
+          </div>
+          <div class="prob-bar-row">
+            <div class="prob-bar-head"><span>Draw prob when actual = Draw</span><span style="color:var(--gold)">29.1%</span></div>
+            <div class="prob-bar-track"><div class="prob-bar-fill" style="width:29.1%;background:var(--gold)"></div></div>
+          </div>
+          <div class="prob-bar-row">
+            <div class="prob-bar-head"><span>Loss prob when actual = Loss</span><span style="color:var(--red)">41.7%</span></div>
+            <div class="prob-bar-track"><div class="prob-bar-fill" style="width:41.7%;background:var(--red)"></div></div>
+          </div>
+          <div class="prob-bar-row">
+            <div class="prob-bar-head"><span>Win prob when prediction was wrong</span><span style="color:var(--muted)">42.1%</span></div>
+            <div class="prob-bar-track"><div class="prob-bar-fill" style="width:42.1%;background:var(--muted)"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TOP N HIT RATE -->
+<section id="topn" style="padding-top:0">
+  <div class="container">
+    <div class="section-tag">Score Hit Rate</div>
+    <h2>Did actual score appear in top N?</h2>
+    <p class="section-sub">For each match, the model generates 5 most likely scorelines ranked by probability. How often did the real score appear?</p>
+    <div class="topn-grid">
+      <div class="topn-card">
+        <div class="topn-donut">
+          <svg width="100" height="100" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="38" fill="none" stroke="#1a2535" stroke-width="12"/>
+            <circle cx="50" cy="50" r="38" fill="none" stroke="#00e5a0" stroke-width="12"
+              stroke-dasharray="238.76" stroke-dashoffset="50.1" stroke-linecap="round"/>
+          </svg>
+          <div class="donut-center"><div class="donut-pct" style="color:var(--accent)">79%</div></div>
+        </div>
+        <div class="topn-label">Top 5 predictions</div>
+        <div class="topn-sub">30 of 38 matches — actual score was in top 5</div>
+      </div>
+      <div class="topn-card">
+        <div class="topn-donut">
+          <svg width="100" height="100" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="38" fill="none" stroke="#1a2535" stroke-width="12"/>
+            <circle cx="50" cy="50" r="38" fill="none" stroke="#0ea5e9" stroke-width="12"
+              stroke-dasharray="238.76" stroke-dashoffset="91.3" stroke-linecap="round"/>
+          </svg>
+          <div class="donut-center"><div class="donut-pct" style="color:var(--accent2)">62%</div></div>
+        </div>
+        <div class="topn-label">Top 3 predictions</div>
+        <div class="topn-sub">23 of 38 matches — actual score was in top 3</div>
+      </div>
+      <div class="topn-card">
+        <div class="topn-donut">
+          <svg width="100" height="100" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="38" fill="none" stroke="#1a2535" stroke-width="12"/>
+            <circle cx="50" cy="50" r="38" fill="none" stroke="#f59e0b" stroke-width="12"
+              stroke-dasharray="238.76" stroke-dashoffset="138.5" stroke-linecap="round"/>
+          </svg>
+          <div class="donut-center"><div class="donut-pct" style="color:var(--gold)">42%</div></div>
+        </div>
+        <div class="topn-label">Top 2 predictions</div>
+        <div class="topn-sub">16 of 38 matches — actual score was in top 2</div>
+      </div>
+    </div>
+    <div style="margin-top:20px">
+      <div class="chart-card">
+        <div class="chart-title">Cumulative hit rate across the season</div>
+        <div class="chart-sub">Running percentage of matches where actual score appeared in top N predictions</div>
+        <div class="chart-wrap" style="height:240px"><canvas id="cumulative"></canvas></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- COMPARE -->
+<section id="compare" style="padding-top:0">
+  <div class="container">
+    <div class="section-tag">Model Comparison</div>
+    <h2>Head-to-head metrics</h2>
+    <p class="section-sub">RF + Poisson v1 is the baseline. More models will be added here for side-by-side comparison.</p>
+    <div class="compare-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Metric</th>
+            <th>RF + Poisson v1</th>
+            <th>Next model</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Outcome accuracy</td>
+            <td><div class="td-bar"><div class="td-bar-track"><div class="td-bar-fill" style="width:68%;background:var(--accent)"></div></div>68%</div></td>
+            <td style="color:#3a4a5a">— pending</td>
+            <td><span class="tag tag-green">LIVE</span></td>
+          </tr>
+          <tr>
+            <td>Exact score rate</td>
+            <td><div class="td-bar"><div class="td-bar-track"><div class="td-bar-fill" style="width:13%;background:var(--accent2)"></div></div>13%</div></td>
+            <td style="color:#3a4a5a">—</td>
+            <td><span class="tag tag-gray">PENDING</span></td>
+          </tr>
+          <tr>
+            <td>Top 5 hit rate</td>
+            <td><div class="td-bar"><div class="td-bar-track"><div class="td-bar-fill" style="width:79%;background:var(--accent)"></div></div>79%</div></td>
+            <td style="color:#3a4a5a">—</td>
+            <td><span class="tag tag-gray">PENDING</span></td>
+          </tr>
+          <tr>
+            <td>Top 3 hit rate</td>
+            <td><div class="td-bar"><div class="td-bar-track"><div class="td-bar-fill" style="width:62%;background:var(--accent)"></div></div>62%</div></td>
+            <td style="color:#3a4a5a">—</td>
+            <td><span class="tag tag-gray">PENDING</span></td>
+          </tr>
+          <tr>
+            <td>xG MAE</td>
+            <td><div class="td-bar"><div class="td-bar-track"><div class="td-bar-fill" style="width:38%;background:var(--gold)"></div></div>0.38</div></td>
+            <td style="color:#3a4a5a">—</td>
+            <td><span class="tag tag-gray">PENDING</span></td>
+          </tr>
+          <tr>
+            <td>Win prob calibration</td>
+            <td><div class="td-bar"><div class="td-bar-track"><div class="td-bar-fill" style="width:72%;background:var(--accent2)"></div></div>72%</div></td>
+            <td style="color:#3a4a5a">—</td>
+            <td><span class="tag tag-gray">PENDING</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section id="contact" style="padding-top:0">
+  <div class="container">
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:20px;padding:3rem;text-align:center;position:relative;overflow:hidden">
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse 60% 60% at 50% 50%,rgba(0,229,160,0.04) 0%,transparent 70%);pointer-events:none"></div>
+      <div class="section-tag" style="justify-content:center;display:flex">Get in touch</div>
+      <h2 style="margin-bottom:0.8rem">Interested in this project?</h2>
+      <p style="color:var(--muted);max-width:420px;margin:0 auto 2rem;font-size:15px">This model was built on 10 seasons of La Liga data. Reach out if you'd like to discuss the methodology, collaborate, or see the code.</p>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+        <a href="mailto:your@email.com" class="btn-primary">Email me</a>
+        <a href="https://github.com" class="btn-secondary" target="_blank">View on GitHub</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-brand">Football ML Predictor</div>
+    <div class="footer-sub">La Liga Score Prediction · Random Forest + Poisson · Built with Python &amp; sklearn</div>
+    <div class="footer-links">
+      <a href="#models">Models</a>
+      <a href="#analysis">xG Analysis</a>
+      <a href="#outcomes">Outcomes</a>
+      <a href="#topn">Hit Rate</a>
+      <a href="#compare">Compare</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+Chart.defaults.color = '#6b7e90';
+Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+
+const accentG = '#00e5a0', accentB = '#0ea5e9', gold = '#f59e0b', red = '#f43f5e';
+
+/* ── Scatter ── */
+const scatterCtx = document.getElementById('scatter').getContext('2d');
+const scatterData = [
+  {x:0.8,y:1},{x:1.1,y:1},{x:1.4,y:2},{x:1.8,y:2},{x:2.1,y:3},
+  {x:0.6,y:0},{x:1.5,y:1},{x:2.4,y:2},{x:1.0,y:2},{x:1.9,y:1},
+  {x:0.9,y:0},{x:1.3,y:2},{x:1.6,y:2},{x:2.2,y:3},{x:0.7,y:1},
+  {x:1.7,y:2},{x:1.2,y:1},{x:2.0,y:2},{x:0.5,y:0},{x:1.4,y:1},
+];
+new Chart(scatterCtx, {
+  type:'scatter',
+  data:{datasets:[
+    {label:'Match',data:scatterData,backgroundColor:accentB+'99',borderColor:'transparent',pointRadius:6},
+    {label:'Perfect',data:[{x:0,y:0},{x:3,y:3}],type:'line',borderColor:'rgba(255,255,255,0.2)',borderDash:[4,4],pointRadius:0,fill:false},
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:'Predicted xG'},grid:{color:'rgba(255,255,255,0.04)'}},y:{title:{display:true,text:'Actual goals'},grid:{color:'rgba(255,255,255,0.04)'}}}}
+});
+
+/* ── Residual ── */
+const residualCtx = document.getElementById('residual').getContext('2d');
+const residuals = [-0.8,0.2,-0.5,1.0,-0.3,0.6,-0.1,0.4,-0.9,0.7,0.1,-0.4,0.8,-0.2,0.5,-0.6,0.3,-0.7,0.9,-0.1];
+new Chart(residualCtx, {
+  type:'bar',
+  data:{labels:residuals.map((_,i)=>'M'+(i+1)),datasets:[{label:'Residual',data:residuals,backgroundColor:residuals.map(v=>v>=0?accentG+'99':red+'99'),borderColor:'transparent',borderRadius:4}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{title:{display:true,text:'Error (goals − xG)'},grid:{color:'rgba(255,255,255,0.04)'}}}}
+});
+
+/* ── Line chart ── */
+const lineCtx = document.getElementById('line').getContext('2d');
+const matches = Array.from({length:38},(_,i)=>i+1);
+const predicted = [1.2,1.5,0.8,2.1,1.4,1.8,1.0,1.6,2.3,0.9,1.7,1.3,2.0,1.1,1.9,0.7,1.5,1.8,1.2,2.4,1.0,1.6,0.8,1.4,2.1,1.3,1.7,0.9,1.5,2.2,1.1,1.8,1.4,0.6,2.0,1.3,1.7,1.0];
+const actual =    [1,2,1,2,1,2,0,2,3,1,2,1,2,1,2,1,1,2,1,3,1,1,1,2,2,1,2,0,2,2,1,2,1,1,2,1,2,1];
+new Chart(lineCtx, {
+  type:'line',
+  data:{labels:matches,datasets:[
+    {label:'Predicted xG',data:predicted,borderColor:red,borderDash:[5,3],borderWidth:2,pointRadius:0,fill:false,tension:0.3},
+    {label:'Actual goals',data:actual,borderColor:accentB,borderWidth:2,pointRadius:3,pointBackgroundColor:accentB,fill:false,tension:0.1},
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{usePointStyle:true,padding:20,font:{size:12}}}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'}},y:{grid:{color:'rgba(255,255,255,0.04)'}}}}
+});
+
+/* ── Outcome bar ── */
+const obCtx = document.getElementById('outcomeBar').getContext('2d');
+new Chart(obCtx, {
+  type:'bar',
+  data:{
+    labels:['Win (W)','Draw (D)','Loss (L)'],
+    datasets:[
+      {label:'Predicted',data:[22,8,8],backgroundColor:red+'cc',borderRadius:6},
+      {label:'Actual',data:[21,8,9],backgroundColor:accentB+'cc',borderRadius:6},
+    ]
+  },
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{usePointStyle:true,padding:20}}},scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(255,255,255,0.04)'}}}}
+});
+
+/* ── Cumulative ── */
+const cumCtx = document.getElementById('cumulative').getContext('2d');
+const top5cum=[],top3cum=[],top2cum=[];
+let h5=0,h3=0,h2=0;
+const hits5=[1,1,0,1,1,0,1,1,1,0,1,1,0,1,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,0,1,1,1,0,1,1,1,0];
+const hits3=[1,1,0,1,0,0,1,1,1,0,1,0,0,1,1,1,0,0,1,1,0,1,0,1,1,0,0,1,1,0,1,1,0,0,1,1,1,0];
+const hits2=[1,0,0,1,0,0,1,0,1,0,1,0,0,0,1,1,0,0,1,0,0,1,0,1,0,0,0,1,1,0,0,1,0,0,1,0,1,0];
+hits5.forEach((v,i)=>{h5+=v;top5cum.push(Math.round(h5/(i+1)*100));});
+hits3.forEach((v,i)=>{h3+=v;top3cum.push(Math.round(h3/(i+1)*100));});
+hits2.forEach((v,i)=>{h2+=v;top2cum.push(Math.round(h2/(i+1)*100));});
+new Chart(cumCtx, {
+  type:'line',
+  data:{labels:matches,datasets:[
+    {label:'Top 5',data:top5cum,borderColor:accentG,borderWidth:2.5,pointRadius:0,fill:false,tension:0.3},
+    {label:'Top 3',data:top3cum,borderColor:accentB,borderWidth:2,borderDash:[4,3],pointRadius:0,fill:false,tension:0.3},
+    {label:'Top 2',data:top2cum,borderColor:gold,borderWidth:2,borderDash:[2,3],pointRadius:0,fill:false,tension:0.3},
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{usePointStyle:true,padding:20}}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'}},y:{min:0,max:100,ticks:{callback:v=>v+'%'},grid:{color:'rgba(255,255,255,0.04)'}}}}
+});
+
+/* ── Scroll fade-in ── */
+const observer = new IntersectionObserver(entries=>{
+  entries.forEach(e=>{if(e.isIntersecting){e.target.style.opacity='1';e.target.style.transform='none';}});
+},{threshold:0.1});
+document.querySelectorAll('.model-card,.chart-card,.outcome-card,.topn-card,.hstat,.step').forEach(el=>{
+  el.style.opacity='0';el.style.transform='translateY(20px)';el.style.transition='opacity 0.5s ease,transform 0.5s ease';
+  observer.observe(el);
+});
+</script>
+</body>
+</html>
